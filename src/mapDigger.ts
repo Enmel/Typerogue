@@ -9,7 +9,7 @@ export class Tile {
 
 
 export type Map = (Tile[] | null)[];
-export type Rooms = (Room | null)[];
+export type Rooms = Room[];
 
 export class MapDigger {
 
@@ -17,20 +17,21 @@ export class MapDigger {
 
         let rooms: Rooms = [];
 
-        for (let index = 0; index < 12; index++) {
+        for (let index = 0; index < 20; index++) {
 
             let room = new Room({
                 width: Rng.generate(5, 10),
                 height: Rng.generate(5, 10),
-                x: Rng.generate(0, 29),
-                y: Rng.generate(0, 29)
+                x: Rng.generate(1, worldW - 1),
+                y: Rng.generate(1, worldH - 1)
             });
 
-            if (room.x + room.width > worldW || room.y + room.height > worldH) {
+            if (room.x + room.width >= worldW || room.y + room.height >= worldH) {
                 continue;
             }
 
             if (rooms.length == 0) {
+
                 rooms.push(room);
 
                 for (let i = room.y; i < room.height + room.y; i++) {
@@ -64,10 +65,52 @@ export class MapDigger {
             rooms.push(room);
         }
 
-        return <digResult>{
-            map,
-            rooms
+        //generate corridors
+
+        return MapDigger.attempToConnectAllRooms({ map, rooms });
+    }
+
+    static attempToConnectAllRooms(digResult: digResult): digResult {
+
+        let { map, rooms } = digResult;
+
+        for (let index = 1; index < rooms.length; index++) {
+            map = MapDigger.generateCorridor(rooms[index - 1], rooms[index], map);
         }
+
+        return { map, rooms };
+    }
+
+    static generateCorridor(Room1: Room, Room2: Room, map: Map): Map {
+
+        let [leftRoom, RigthRoom] = [Room1, Room2];
+        let [upperRoom, lowerRoom] = [Room1, Room2];
+
+        if (Room1.x > Room2.x) {
+            let aux = leftRoom;
+            leftRoom = RigthRoom;
+            RigthRoom = aux;
+        }
+
+        if (Room1.y > Room2.y) {
+            let aux = upperRoom;
+            upperRoom = lowerRoom;
+            lowerRoom = aux;
+        }
+
+        let corridorWidth = RigthRoom.center.x - leftRoom.center.x;
+
+        for (let j = 0; j < corridorWidth; j++) {
+            map[leftRoom.center.y]![j + leftRoom.center.x] = new Tile();
+        }
+
+        let corridorH = (lowerRoom.center.y - upperRoom.center.y) + 1;
+
+        for (let j = 0; j < corridorH; j++) {
+            map[j + upperRoom.center.y]![RigthRoom.center.x] = new Tile();
+        }
+
+        return map;
     }
 }
 
@@ -93,7 +136,7 @@ export class World {
         }
 
         let tileBlock: Tile = {
-            backgroundColor: "#FFF",
+            backgroundColor: "#000",
             glyph: "#",
             color: "#000"
         }
@@ -103,7 +146,6 @@ export class World {
         })
 
         let { map, rooms } = MapDigger.dig(blankMap, this.witdh, this.heigth);
-
         this.rooms = rooms;
         this.map = map;
     }
